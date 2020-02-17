@@ -1,11 +1,12 @@
+import math
 import pygame
-pygame.init()
-
-import matplotlib.pyplot as plt
+import cProfile
 import numpy as np
 import scipy.ndimage
+import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-import math
+
+pygame.init()
 
 '''
 initializes variables: 
@@ -20,6 +21,8 @@ initializes variables:
 - gaussianPhi as the original angle for the gaussian 
 
 initializes initialQualities as the list for the original crescent
+initializes shapeMultiplies as a dictionary to give as the value to convert
+the slider positions into the shape's properties
 '''
 
 x=800
@@ -37,6 +40,10 @@ initialQualities=[
     x,y,discRadius,innerRadius,amplitude,
     sigma,crescentPhi,centerDisplacement
     ]
+shapeMultipliers = {
+    'crescent': [0.2,0.2,4,4,0.00625,15,25.46,16],
+    'gaussian': [0.2,0.2,0.00625,8,8,25.464]
+    } 
 
 '''
 creates the colormap: four arguments are made in colors which are
@@ -64,7 +71,7 @@ grey=(150,150,150)
 darkGrey=(100,100,100)
 white=(255,255,255)
 pygame.display.set_caption('black hole modeling interface')
-gameDisplay=pygame.display.set_mode((display_width,display_height))
+gameDisplay=pygame.display.set_mode((display_width,display_height),pygame.HWSURFACE)
 clock=pygame.time.Clock()
 
 '''
@@ -79,14 +86,17 @@ textRect=text.get_rect()
 some random initializations:
 - sets done to false, basically makes main code loop until done is set 
   to true.
+- sets the mouseClicked variable to not clicked
 - sets sliderClicked to 12 because the crescent only takes 8 paramaters
 - sets selectedShape to zero becuase no shape is selected
 - sets the values for the maximum crescent and gaussian labels
 - sets the inital qualities for the crescent
 - makes the names for the crescent and gaussian sliders
+- initializes the sliderPositions list
 - initializes the shape quality and type dictionaries
 '''
 done=False
+mouseClicked=False
 sliderClicked=12
 selectedShape=0
 namesOfRightCrescentLabels=[800,800,40,400,1,5,6.28,10]
@@ -102,7 +112,7 @@ namesOfGaussianSliders=[
     'x-center','y-center','amplitude',
     'width','height', 'angle'
     ]
-
+sliderPositions=[]
 oldShapeQualities={}
 oldShapeTypes={}
 
@@ -113,7 +123,6 @@ the functions:
   false
 - defineShape, which sets the shape to either a crescent or a gaussian and 
   gives it the base qualities
-- makePlaced and makeUnplaced. these are self explanatory.
 - changeQuality, which sets a quality of the model to a given value
 
 '''
@@ -130,10 +139,6 @@ class Model:
             self.qualities=[x,y,amplitude, sigmaX, sigmaY, gaussianPhi]
         else:
             print('the shape is neither crescent nor gaussian')
-    def makePlaced(self):
-        self.placed=False
-    def makeUnplaced(self,x,y):
-        self.placed=True
     def changeQuality(self,quality,value):
         self.qualities[quality]=value
 
@@ -173,7 +178,7 @@ def crescentCreate(
     plt.axis('off')
     plt.savefig(saveName, bbox_inches='tight',
         pad_inches=0, transparent=True)
-    #splt.show()
+    #plt.show()
 
 '''
 the gaussianCreate function is similar to the crescentCreate function, but it
@@ -184,7 +189,7 @@ It creates the gaussian by using the two-dimensional normal distribution
 function. It also rotates the gaussian by rotating the coordinates it is 
 given. it then blurs the image withgaussian_filter and smooths it with 
 interpolation = 'gaussian'.
-'''
+''' 
 
 def gaussianCreate(
         amplitude,
@@ -202,7 +207,8 @@ def gaussianCreate(
             xDist=((c-50)**2+(r-50)**2)**0.5\
                 *math.cos(gaussianPhi+math.atan((c-50)/(r-50.001)))
             im_arr[r][c]=(((1.)/(2.*np.pi*sigmaX*sigmaY))\
-                *np.exp(-0.5*((xDist)/(sigmaX))**2-0.5*((yDist)/(sigmaY))**2))
+                *np.exp(-0.5*((xDist)/(sigmaX+0.001))**2
+                -0.5*((yDist)/(sigmaY+0.001))**2))
     im_arr=scipy.ndimage.gaussian_filter(im_arr, sigma)
 
     plt.imshow(im_arr,cmap=cmapred, interpolation ='gaussian')
@@ -211,6 +217,31 @@ def gaussianCreate(
     plt.savefig(saveName, bbox_inches='tight',
         pad_inches=0, transparent=True)
     #plt.show()
+
+'''
+SaveImage function. It doesn't do anything now, but soon it will be able to
+export a final saved image
+'''
+def saveImage():
+    #print(oldShapeQualities)
+    #print(oldShapeTypes)
+    print(" ")
+
+'''
+A function that simplifies the code; basically just changes the slider
+positions. It goes through the length of the shape multipliers (which shows
+how many sliders will be needed) and appends a value of a slider corresponding
+to the currentModel qualities. It exports a list that the code will use for 
+slider positions.
+'''
+def changeSliderPositions():
+    sliderPositions = []
+    for i in range(len(shapeMultipliers[currentModel.shape])):
+        sliderPositions.append(currentModel.qualities[i]*\
+            (shapeMultipliers[currentModel.shape][i])+820)
+    return(sliderPositions)
+
+
 
 '''
 this chunk of code creates the crescent and gaussian icons. it first calls
@@ -260,6 +291,14 @@ while not done:
             done=True
         if event.type == pygame.MOUSEBUTTONDOWN:
             '''
+            sets mouse clicked to true
+            if the savebutton is clicked, call the saveImage functon
+            '''
+            mouseClicked=True
+            if pos[0]>850 and pos[0]<950 and pos[1]>770 and pos[1]<790:
+                saveImage()
+                done = True
+            '''
             if the selected shape is greater than zero, or if a shape is
             selected, then go check if the mouse is over the slider bar and 
             then check if the mouse is over the ellipse. if so, then sets the 
@@ -268,16 +307,17 @@ while not done:
             if selectedShape>0:
                 if pos[0]>820 and pos[0]<980 and pos[1]>300:
                     for i in range(8):
-                        if pos[1]>325+60*i\
-                                and pos[1]<335+60*i\
-                                and pos[0]<sliderPositions[i]+20\
-                                and pos[0]>sliderPositions[i]-10:
+                        if pos[1]>320+60*i\
+                                and pos[1]<340+60*i\
+                                and pos[0]<sliderPositions[i]+25\
+                                and pos[0]>sliderPositions[i]-15:
                             sliderClicked=i
             '''
             if the mouse is over the crescent icon, then if a shape is already
             selected add its quality and type to the dictionary. either way,
             add 1 to the selectedShape variable and create a model named
             crescent.png with size 800 by 800 pixels. places the icon.
+            it also makes the sliderPositions list
             '''
             if pos[0]<950 and pos[0]>800 and pos[1]<160 and pos[1]>10:
                 if selectedShape>0:
@@ -294,74 +334,75 @@ while not done:
                     currentModel.qualities[5],
                     currentModel.qualities[6],
                     currentModel.qualities[7],
-                    str(currentModel.name + '.png'))
-                currentModelImage=pygame.image.load('crescent.png')
+                    'currentModel.png')
+                currentModelImage=pygame.image.load('currentModel.png')
                 currentModelImage=pygame.transform.scale(currentModelImage,
-                    (800,800))
-                currentModel.makePlaced()
+                                                        (800,800))
+                sliderPositions = changeSliderPositions()
             '''
             if the mouse is over the gaussian icon, then do basically the same
             as the above if statement about the crescent icon.
             '''
             if pos[0]<950 and pos[0]>800 and pos[1]<270 and pos[1]>144:
-                if selectedShape == 1:
-                    oldShapeQualities['1']=currentModel.qualities
-                    oldShapeTypes['1']=currentModel.shape
-                elif selectedShape>1:
+                if selectedShape>0:
                     oldShapeQualities[str(selectedShape)]=\
                         currentModel.qualities
                     oldShapeTypes[str(selectedShape)]=currentModel.shape
                 selectedShape += 1
-                currentModel=Model('gaussian' + str(selectedShape))
+                currentModel=Model('gaussian')
                 currentModel.defineShape('gaussian')
-                currentModel.changeQuality(3,10)
                 gaussianCreate(
                     currentModel.qualities[2],
                     currentModel.qualities[3],
                     currentModel.qualities[4],
                     currentModel.qualities[5],
-                    str(currentModel.name + '.png'))
-                currentModelImage=pygame.image.load('gaussian'
-                                                    + str(selectedShape) 
-                                                    + '.png')
+                    'currentModel.png')
+                currentModelImage=pygame.image.load('currentModel.png')
                 currentModelImage=pygame.transform.scale(currentModelImage,
-                                                        (800,800))    
-                currentModel.makePlaced()
+                                                        (800,800))
+                sliderPositions = changeSliderPositions()
         '''
-        if unclicked, then if a selected shapes become unplaced and selected
-        sliders are unselected
+        if the mouse is clicked, the shape is placed, and the mouse isn't in
+        the sidebar, then bring the shape to the mouse. Basically a click and
+        drag function.
+        '''
+        if mouseClicked and currentModel.placed\
+                        and pos[0]<800:
+            pos=pygame.mouse.get_pos()
+            currentModel.changeQuality(0,pos[0])
+            currentModel.changeQuality(1,pos[1])
+            sliderPositions = changeSliderPositions()
+        '''
+        if mouse isunclicked, then if a selected shapes become unplaced and 
+        selected sliders are unselected
         '''
         if event.type == pygame.MOUSEBUTTONUP:
+            mouseClicked=False
             if selectedShape>0:
-                currentModel.makeUnplaced(pos[0],pos[1])
+                currentModel.placed=True
             if sliderClicked<10:
                 sliderClicked=12
 
     if sliderClicked<10:
         '''
-        if a slider is clicked and the current selected shape is a crescent
-        - if the x position is too low (past the edge of the slider), bring
-          the value up and deselect the slider
-        - if the x pos is too high, then it brings the value down and deselcts
-          the slider
+        if a slider is clicked
+        - if the x position is too low (past the edge of the slider), set the
+          value to zero
+        - if the x pos is too high, then it brings the value up to the maximum
         - otherwise, bring the value to the position of the slider and creates
           a new model unless the slider is the first or second (position) one.
-        does the same thing, but with gaussians
         '''
-        if currentModel.shape == 'crescent':
-            if pos[0]<830:
-                currentModel.qualities[sliderClicked]=\
-                    namesOfRightCrescentLabels[sliderClicked]*0.005
-                sliderClicked=12
-            elif pos[0]>980:
-                currentModel.qualities[sliderClicked]=\
-                    namesOfRightCrescentLabels[sliderClicked]*0.95
-                sliderClicked=12
-            else:
-                currentModel.qualities[sliderClicked]=\
-                    currentModel.qualities[sliderClicked]\
-                    *((pos[0]-833)/(sliderPositions[sliderClicked]-820.1))
-                if sliderClicked>1:
+        if pos[0]<830:
+            currentModel.qualities[sliderClicked]=0
+        elif pos[0]>980:
+            currentModel.qualities[sliderClicked]=\
+                namesOfRightCrescentLabels[sliderClicked]
+        else:
+            currentModel.qualities[sliderClicked]=\
+                (pos[0]-833)/(shapeMultipliers['crescent'][sliderClicked])
+            sliderPositions = changeSliderPositions()
+            if sliderClicked>1:
+                if currentModel.shape == 'crescent':
                     crescentCreate(
                         currentModel.qualities[2],
                         currentModel.qualities[3],
@@ -369,33 +410,18 @@ while not done:
                         currentModel.qualities[5],
                         currentModel.qualities[6],
                         currentModel.qualities[7],
-                        str(currentModel.name + '.png'))
-                    currentModelImage=pygame.image.load('crescent.png')
-                    currentModelImage=\
-                        pygame.transform.scale(currentModelImage,(800,800))
-        elif currentModel.shape == 'gaussian':
-            if pos[0]<830:
-                currentModel.qualities[sliderClicked]=\
-                    namesOfRightGaussianLabels[sliderClicked]*0.005
-                sliderClicked=12
-            elif pos[0]>980:
-                currentModel.qualities[sliderClicked]=\
-                    namesOfRightGaussianLabels[sliderClicked]*0.95
-                sliderClicked=12
-            else:
-                currentModel.qualities[sliderClicked]=\
-                    currentModel.qualities[sliderClicked]\
-                    *((pos[0]-833)/(sliderPositions[sliderClicked]-820.1))
-                if sliderClicked>1:
+                        str('currentModel.png'))
+                    currentModelImage=pygame.image.load('currentModel.png')
+                elif currentModel.shape == 'gaussian':
                     gaussianCreate(
                         currentModel.qualities[2],
                         currentModel.qualities[3],
                         currentModel.qualities[4],
                         currentModel.qualities[5],
-                        str('gaussian.png'))
-                    currentModelImage=pygame.image.load('gaussian.png')
-                    currentModelImage=\
-                        pygame.transform.scale(currentModelImage, (800,800))
+                        str('currentModel.png'))
+                    currentModelImage=pygame.image.load('currentModel.png')
+                currentModelImage=\
+                    pygame.transform.scale(currentModelImage,(800,800))
     '''
     goes through the history of models and creates each one at the right
     coordinates
@@ -459,6 +485,7 @@ while not done:
     '''
     if selectedShape>0 and not currentModel.placed:
         pos=pygame.mouse.get_pos()
+        sliderPositions = changeSliderPositions()
         if pos[0]<= 800:
             currentModel.changeQuality(0,pos[0])
             currentModel.changeQuality(1,pos[1])
@@ -478,30 +505,12 @@ while not done:
     this block shows the grey slider bars and the positions of the sliders
     '''
     if selectedShape>0:
+
         '''
         creates the positions of the ellipse in correspondence to the values;
-        multiplues each value by a constant and adds 820 to it
+        multiplies each value by a constant and adds 820 to it
         '''
-        if currentModel.shape == 'crescent':
-            sliderPositions=[
-                currentModel.qualities[0]*0.2+820,
-                currentModel.qualities[1]*0.2+820,
-                currentModel.qualities[2]*4+820,
-                currentModel.qualities[3]*4+820,
-                currentModel.qualities[4]*0.00625+820,
-                currentModel.qualities[5]*16+820,
-                currentModel.qualities[6]*25.46+820,
-                currentModel.qualities[7]*16+820
-                ]
-        elif currentModel.shape == 'gaussian':
-            sliderPositions=[
-                currentModel.qualities[0]*0.2+820,
-                currentModel.qualities[1]*0.2+820,
-                currentModel.qualities[2]*0.00625+820,
-                currentModel.qualities[3]*8+820,
-                currentModel.qualities[4]*8+820,
-                currentModel.qualities[5]*25.464+820
-                ]
+
         '''
         for every slider, 
         - displays the zero at the beginning of each slider
@@ -538,7 +547,7 @@ while not done:
                                     True, lightGrey)
             gameDisplay.blit(text, textRect)
             pygame.draw.rect(gameDisplay, lightGrey, (820,330+60*i,160,5))
-            pygame.draw.ellipse(gameDisplay, black, 
+            pygame.draw.ellipse(gameDisplay, black,
                                 (sliderPositions[i],323+60*i,20,20))
     else:
         '''
@@ -571,9 +580,14 @@ while not done:
     gameDisplay.blit(crescentIcon,(760,-50))
     gameDisplay.blit(gaussianIcon,(760,80))
 
-
+    '''
+    draws save button and label
+    '''
+    pygame.draw.rect(gameDisplay,white, (850,770,100,20))
+    textRect.center=(885,782)
+    text=font.render('save and quit', True, black)
+    gameDisplay.blit(text, textRect)
     pygame.display.update()
     clock.tick(500)
-
 pygame.quit()
 quit()
