@@ -3,17 +3,47 @@ import pygame
 import cProfile
 import numpy as np
 import scipy.ndimage
+from pygame.locals import *
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
+
+'''
+initializes various other qualities:
+- does this weird flag thing that improves speed
+- starts pygame
+- sets the allowed events to quit, mousedown, and mouseup
+- display_width is the width of the screen
+- display_height is the height of the sceen
+- various colors: black, lightGrey, darkGrey, and white.
+- sets the name of the window with set_caption
+- sets the pygame display to aforementioned display_width and display_height
+- starts the clock
+'''
+
+flags = FULLSCREEN | DOUBLEBUF
 pygame.init()
+pygame.event.set_allowed([QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP])
+display_width=1000
+display_height=800
+black=(0,0,0)
+lightGrey=(200,200,200)
+grey=(150,150,150)
+darkGrey=(100,100,100)
+white=(255,255,255)
+pygame.display.set_caption('black hole modeling interface')
+gameDisplay=pygame.display.set_mode((display_width,display_height),flags)
+
+clock=pygame.time.Clock()
+
+gameDisplay.set_alpha(None)
 
 '''
 initializes variables: 
 - x as the origin position for the items when they are first formed
-- discRadius as the origin radius of the crescent
+- discRadius ares the origin radius of the crescent
 - innerRadius asthe origial radius for the inner crescent circle
-- amplitude as the original brightness for both the crescent and the gaussian
+- amplitude as the original amplitude for both the crescent and the gaussian
 - sigma as the blurriness for the crescent
 - sigmaX as the horizontal scale for the gaussian
 - sigmaY asthe vertical scale for the gaussian
@@ -41,38 +71,9 @@ initialQualities=[
     sigma,crescentPhi,centerDisplacement
     ]
 shapeMultipliers = {
-    'crescent': [0.2,0.2,4,4,0.00625,15,25.46,16],
-    'gaussian': [0.2,0.2,0.00625,8,8,25.464]
-    } 
-
-'''
-creates the colormap: four arguments are made in colors which are
-red, green, blue, and transparency. c goes up to one instead of 255.
-the colormap is called cmapred and has 100 possible colors
-'''
-colors=[(c,c**4,c**7,c**2) for c in np.linspace(0,1,100)]
-cmapred=mcolors.LinearSegmentedColormap.from_list('mycmap', colors, N=100)
-
-
-'''
-initializes various other qualities:
-- display_width is the width of the screen
-- display_height is the height of the sceen
-- various colors: black, lightGrey, darkGrey, and white.
-- sets the name of the window with set_caption
-- sets the pygame display to aforementioned display_width and display_height
-- starts the clock
-'''
-display_width=1000
-display_height=800
-black=(0,0,0)
-lightGrey=(200,200,200)
-grey=(150,150,150)
-darkGrey=(100,100,100)
-white=(255,255,255)
-pygame.display.set_caption('black hole modeling interface')
-gameDisplay=pygame.display.set_mode((display_width,display_height),pygame.HWSURFACE)
-clock=pygame.time.Clock()
+    'crescent': [0.2,0.2,4,4,160,15,25.46,16],
+    'gaussian': [0.2,0.2,160,8,8,25.464]
+    }
 
 '''
 initializes the fonts and the text rectangle. sets the original font to
@@ -81,6 +82,14 @@ calibri light at 20px.
 font=pygame.font.SysFont('calibril.ttf', 20)
 text=font.render('labels', True, white)
 textRect=text.get_rect()
+
+'''
+creates the colormap: four arguments are made in colors which are
+red, green, blue, and transparency. c goes up to one instead of 255.
+the colormap is called cmapred and has 100 possible colors
+'''
+colors=[(c,c**4,c**7,c**2) for c in np.linspace(0,1,7)]
+cmapred=mcolors.LinearSegmentedColormap.from_list('mycmap', colors, N=100)
 
 '''
 some random initializations:
@@ -99,13 +108,13 @@ done=False
 mouseClicked=False
 sliderClicked=12
 selectedShape=0
-namesOfRightCrescentLabels=[800,800,40,400,1,5,6.28,10]
+namesOfRightCrescentLabels=[800,800,40,40,1,5,6.28,10]
 namesOfRightGaussianLabels=[800,800,1,20,20,6.28]
 initialQualitiesForCrescent=[820,820,884,862,980,916,820,884]
 
 namesOfCrescentSliders=[
     'x-center','y-center','radius of entire disk',
-    'radius of inner disk','brightness','sigma',
+    'radius of inner disk','amplitude','sigma',
     'angle','center displacement'
     ]
 namesOfGaussianSliders=[
@@ -159,6 +168,15 @@ def crescentCreate(
         crescentPhi,
         centerDisplacement,
         saveName):
+    amplitude = 0.5*amplitude+0.5
+    if amplitude<=1 and amplitude>=0:
+        '''
+        creates the colormap: four arguments are made in colors which are
+        red, green, blue, and transparency. c goes up to one instead of 255.
+        the colormap is called cmapred and has 100 possible colors
+        '''
+        colors=[(c,c**4,c**7,c**2) for c in np.linspace(0,amplitude,7)]
+        cmapred=mcolors.LinearSegmentedColormap.from_list('mycmap', colors, N=100)
     plt.clf()
     im_arr=np.zeros((100,100))
     for r, row in enumerate(im_arr):
@@ -176,8 +194,8 @@ def crescentCreate(
     plt.imshow(im_arr,cmap=cmapred, interpolation ='gaussian')
     #plt.colorbar()
     plt.axis('off')
-    plt.savefig(saveName, bbox_inches='tight',
-        pad_inches=0, transparent=True)
+    plt.savefig(saveName,figsize=(800/227, 800/227),dpi=227,
+        bbox_inches='tight',pad_inches=0, transparent=True)
     #plt.show()
 
 '''
@@ -197,9 +215,17 @@ def gaussianCreate(
         sigmaY,
         gaussianPhi,
         saveName):
+    amplitude = 0.5*amplitude+0.5
     plt.clf()
     im_arr=np.zeros((100,100))
-    
+    if amplitude<=1 and amplitude>=0:
+        '''
+        creates the colormap: four arguments are made in colors which are
+        red, green, blue, and transparency. c goes up to one instead of 255.
+        the colormap is called cmapred and has 100 possible colors
+        '''
+        colors=[(c,c**4,c**7,c**2) for c in np.linspace(0,amplitude,7)]
+        cmapred=mcolors.LinearSegmentedColormap.from_list('mycmap', colors, N=100)
     for r, row in enumerate(im_arr):
         for c, col in enumerate(row):
             yDist=((c-50)**2+(r-50)**2)**0.5\
@@ -209,13 +235,13 @@ def gaussianCreate(
             im_arr[r][c]=(((1.)/(2.*np.pi*sigmaX*sigmaY))\
                 *np.exp(-0.5*((xDist)/(sigmaX+0.001))**2
                 -0.5*((yDist)/(sigmaY+0.001))**2))
-    im_arr=scipy.ndimage.gaussian_filter(im_arr, sigma)
+    #im_arr=scipy.ndimage.gaussian_filter(im_arr, sigma)
 
     plt.imshow(im_arr,cmap=cmapred, interpolation ='gaussian')
     #plt.colorbar()
     plt.axis('off')
-    plt.savefig(saveName, bbox_inches='tight',
-        pad_inches=0, transparent=True)
+    plt.savefig(saveName,figsize=(800/192, 800/192),dpi=192,
+        bbox_inches='tight',pad_inches=0, transparent=True)
     #plt.show()
 
 '''
@@ -261,7 +287,7 @@ crescentCreate(
     crescentIcon.qualities[6],
     crescentIcon.qualities[7],
     str(crescentIcon.name + '.png'))
-crescentIcon=pygame.image.load('crescentIcon.png')
+crescentIcon=pygame.image.load('crescentIcon.png').convert_alpha()
 crescentIcon=pygame.transform.scale(crescentIcon, (250,250))
 gaussianIcon=Model('gaussianIcon')
 gaussianIcon.defineShape('gaussian')
@@ -271,7 +297,7 @@ gaussianCreate(
     gaussianIcon.qualities[4],
     gaussianIcon.qualities[5],
     str(gaussianIcon.name + '.png'))
-gaussianIcon=pygame.image.load('gaussianIcon.png')
+gaussianIcon=pygame.image.load('gaussianIcon.png').convert_alpha()
 gaussianIcon=pygame.transform.scale(gaussianIcon, (250,250))
 
 '''
@@ -305,12 +331,12 @@ while not done:
             sliderClicked variable to the number slider that is clicked
             '''
             if selectedShape>0:
-                if pos[0]>820 and pos[0]<980 and pos[1]>300:
+                if pos[0]>800 and pos[0]<1000 and pos[1]>300:
                     for i in range(8):
                         if pos[1]>320+60*i\
                                 and pos[1]<340+60*i\
-                                and pos[0]<sliderPositions[i]+25\
-                                and pos[0]>sliderPositions[i]-15:
+                                and pos[0]<sliderPositions[i]+35\
+                                and pos[0]>sliderPositions[i]-25:
                             sliderClicked=i
             '''
             if the mouse is over the crescent icon, then if a shape is already
@@ -335,9 +361,8 @@ while not done:
                     currentModel.qualities[6],
                     currentModel.qualities[7],
                     'currentModel.png')
-                currentModelImage=pygame.image.load('currentModel.png')
-                currentModelImage=pygame.transform.scale(currentModelImage,
-                                                        (800,800))
+                currentModelImage=pygame.image.load('currentModel.png').\
+                    convert_alpha()
                 sliderPositions = changeSliderPositions()
             '''
             if the mouse is over the gaussian icon, then do basically the same
@@ -357,23 +382,11 @@ while not done:
                     currentModel.qualities[4],
                     currentModel.qualities[5],
                     'currentModel.png')
-                currentModelImage=pygame.image.load('currentModel.png')
-                currentModelImage=pygame.transform.scale(currentModelImage,
-                                                        (800,800))
+                currentModelImage=pygame.image.load('currentModel.png').\
+                    convert_alpha()
                 sliderPositions = changeSliderPositions()
         '''
-        if the mouse is clicked, the shape is placed, and the mouse isn't in
-        the sidebar, then bring the shape to the mouse. Basically a click and
-        drag function.
-        '''
-        if mouseClicked and currentModel.placed\
-                        and pos[0]<800:
-            pos=pygame.mouse.get_pos()
-            currentModel.changeQuality(0,pos[0])
-            currentModel.changeQuality(1,pos[1])
-            sliderPositions = changeSliderPositions()
-        '''
-        if mouse isunclicked, then if a selected shapes become unplaced and 
+        if mouse is unclicked, then if a selected shapes become unplaced and 
         selected sliders are unselected
         '''
         if event.type == pygame.MOUSEBUTTONUP:
@@ -392,36 +405,48 @@ while not done:
         - otherwise, bring the value to the position of the slider and creates
           a new model unless the slider is the first or second (position) one.
         '''
-        if pos[0]<830:
-            currentModel.qualities[sliderClicked]=0
-        elif pos[0]>980:
-            currentModel.qualities[sliderClicked]=\
+        if currentModel.shape=='crescent':
+            if pos[0]<830:
+                currentModel.qualities[sliderClicked]=0
+            elif pos[0]>980:
+                currentModel.qualities[sliderClicked]=\
                 namesOfRightCrescentLabels[sliderClicked]
-        else:
-            currentModel.qualities[sliderClicked]=\
-                (pos[0]-833)/(shapeMultipliers['crescent'][sliderClicked])
+            else:
+                currentModel.qualities[sliderClicked]=\
+                    (pos[0]-833)/(shapeMultipliers[currentModel.shape]\
+                    [sliderClicked])
             sliderPositions = changeSliderPositions()
             if sliderClicked>1:
-                if currentModel.shape == 'crescent':
-                    crescentCreate(
-                        currentModel.qualities[2],
-                        currentModel.qualities[3],
-                        currentModel.qualities[4],
-                        currentModel.qualities[5],
-                        currentModel.qualities[6],
-                        currentModel.qualities[7],
-                        str('currentModel.png'))
-                    currentModelImage=pygame.image.load('currentModel.png')
-                elif currentModel.shape == 'gaussian':
-                    gaussianCreate(
-                        currentModel.qualities[2],
-                        currentModel.qualities[3],
-                        currentModel.qualities[4],
-                        currentModel.qualities[5],
-                        str('currentModel.png'))
-                    currentModelImage=pygame.image.load('currentModel.png')
-                currentModelImage=\
-                    pygame.transform.scale(currentModelImage,(800,800))
+                crescentCreate(
+                    currentModel.qualities[2],
+                    currentModel.qualities[3],
+                    currentModel.qualities[4],
+                    currentModel.qualities[5],
+                    currentModel.qualities[6],
+                    currentModel.qualities[7],
+                    str('currentModel.png'))
+                currentModelImage=pygame.image.load('currentModel.png').\
+                    convert_alpha()
+        if currentModel.shape=='gaussian':
+            if pos[0]<830:
+                currentModel.qualities[sliderClicked]=0
+            elif pos[0]>980:
+                currentModel.qualities[sliderClicked]=\
+                namesOfRightGaussianLabels[sliderClicked]
+            else:
+                currentModel.qualities[sliderClicked]=\
+                    (pos[0]-833)/(shapeMultipliers[currentModel.shape]\
+                    [sliderClicked])
+            sliderPositions = changeSliderPositions()
+            if sliderClicked>1:
+                gaussianCreate(
+                    currentModel.qualities[2],
+                    currentModel.qualities[3],
+                    currentModel.qualities[4],
+                    currentModel.qualities[5],
+                    str('currentModel.png'))
+                currentModelImage=pygame.image.load('currentModel.png').\
+                    convert_alpha()
     '''
     goes through the history of models and creates each one at the right
     coordinates
@@ -443,8 +468,7 @@ while not done:
                 oldShapeQualities[str(i+1)][4],
                 oldShapeQualities[str(i+1)][5],
                 str('oldShape.png'))
-        currentOldImage=pygame.image.load('oldShape.png')
-        currentOldImage=pygame.transform.scale(currentOldImage, (800,800))
+        currentOldImage=pygame.image.load('oldShape.png').convert_alpha()
         gameDisplay.blit(currentOldImage,
                         (oldShapeQualities[str(i+1)][0]-400,
                         oldShapeQualities[str(i+1)][1]-400))
@@ -492,6 +516,16 @@ while not done:
         gameDisplay.blit(currentModelImage,(currentModel.qualities[0]-400,
                                             currentModel.qualities[1]-400))
     elif selectedShape>0 and currentModel.placed:
+        '''
+        if the mouse is clicked, the shape is placed, and the mouse isn't in
+        the sidebar, then bring the shape to the mouse. Basically a click and
+        drag function.
+        '''
+        if mouseClicked and pos[0]<800:
+            pos=pygame.mouse.get_pos()
+            currentModel.changeQuality(0,pos[0])
+            currentModel.changeQuality(1,pos[1])
+            sliderPositions = changeSliderPositions()
         gameDisplay.blit(currentModelImage,(currentModel.qualities[0]-400,
                                             currentModel.qualities[1]-400))
 
@@ -548,14 +582,14 @@ while not done:
             gameDisplay.blit(text, textRect)
             pygame.draw.rect(gameDisplay, lightGrey, (820,330+60*i,160,5))
             pygame.draw.ellipse(gameDisplay, black,
-                                (sliderPositions[i],323+60*i,20,20))
+                                (sliderPositions[i]-5,323+60*i,20,20))
     else:
         '''
         if no shape is selected, then show the base values for the sliders/
         Shows the zeroes, the crescent values, the crescent names, and the
         crescent number of sliders. displays undifined for each slider value
         '''
-        for i in range(len(initialQualities)):
+        for i in range(len(initialQualitiesForCrescent)):
             textRect.center=(837, 350+60*i)
             text=font.render('0', True, white)
             gameDisplay.blit(text, textRect)
