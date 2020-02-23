@@ -3,6 +3,7 @@ import pygame
 import cProfile
 import numpy as np
 import scipy.ndimage
+from PIL import Image
 from pygame.locals import *
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -49,6 +50,7 @@ initializes variables:
 - sigmaY asthe vertical scale for the gaussian
 - crescentPhi as the original angle for thecrescent
 - gaussianPhi as the original angle for the gaussian 
+- i'm gonna keep working on this project because it is FUN and i'm LEARNING
 
 initializes initialQualities as the list for the original crescent
 initializes shapeMultiplies as a dictionary to give as the value to convert
@@ -70,10 +72,11 @@ initialQualities=[
     x,y,discRadius,innerRadius,amplitude,
     sigma,crescentPhi,centerDisplacement
     ]
-shapeMultipliers = {
+shapeMultipliers={
     'crescent': [0.2,0.2,4,4,160,15,25.46,16],
     'gaussian': [0.2,0.2,160,8,8,25.464]
     }
+previousOldShapeLength=0
 
 '''
 initializes the fonts and the text rectangle. sets the original font to
@@ -146,8 +149,6 @@ class Model:
                                 sigma,crescentPhi,centerDisplacement]
         elif self.shape == 'gaussian':
             self.qualities=[x,y,amplitude, sigmaX, sigmaY, gaussianPhi]
-        else:
-            print('the shape is neither crescent nor gaussian')
     def changeQuality(self,quality,value):
         self.qualities[quality]=value
 
@@ -176,7 +177,8 @@ def crescentCreate(
         the colormap is called cmapred and has 100 possible colors
         '''
         colors=[(c,c**4,c**7,c**2) for c in np.linspace(0,amplitude,7)]
-        cmapred=mcolors.LinearSegmentedColormap.from_list('mycmap', colors, N=100)
+        cmapred=mcolors.LinearSegmentedColormap.from_list('mycmap', colors,\
+                                                        N=100)
     plt.clf()
     im_arr=np.zeros((100,100))
     for r, row in enumerate(im_arr):
@@ -232,9 +234,9 @@ def gaussianCreate(
                 *math.sin(gaussianPhi+math.atan((c-50)/(r-50.001)))
             xDist=((c-50)**2+(r-50)**2)**0.5\
                 *math.cos(gaussianPhi+math.atan((c-50)/(r-50.001)))
-            im_arr[r][c]=(((1.)/(2.*np.pi*sigmaX*sigmaY))\
-                *np.exp(-0.5*((xDist)/(sigmaX+0.001))**2
-                -0.5*((yDist)/(sigmaY+0.001))**2))
+            im_arr[r][c]=(((1.)/(2.*np.pi*sigmaX*sigmaY+0.01))\
+                *np.exp(-0.5*((xDist)/(sigmaX+0.01))**2
+                -0.5*((yDist)/(sigmaY+0.01))**2))
     #im_arr=scipy.ndimage.gaussian_filter(im_arr, sigma)
 
     plt.imshow(im_arr,cmap=cmapred, interpolation ='gaussian')
@@ -246,12 +248,30 @@ def gaussianCreate(
 
 '''
 SaveImage function. It doesn't do anything now, but soon it will be able to
-export a final saved image
+export a final saved image ADD COMMENT
 '''
 def saveImage():
-    #print(oldShapeQualities)
-    #print(oldShapeTypes)
-    print(" ")
+    if previousOldShapeLength>0:
+        background = Image.open("blackBackground.png")
+        overlay = Image.open("oldShape1.png")
+        background = background.convert("RGBA")
+        overlay = overlay.convert("RGBA")
+        background.paste(overlay, box=None, mask=overlay)
+        for i in oldShapeQualities:
+            i=int(i)
+            if int(i+1)<=previousOldShapeLength:
+                overlay = Image.open("oldShape%d.png" % int(i+1))
+                background = background.convert("RGBA")
+                overlay = overlay.convert("RGBA")
+                background.paste(overlay, box=None, mask=overlay)
+    overlay = Image.open("currentModel.png")
+    background = background.convert("RGBA")
+    overlay = overlay.convert("RGBA")
+    background.paste(overlay, box=None, mask=overlay)
+    overlay = background
+    background = Image.open("blackBackground.png")
+    background.paste(overlay, box=None, mask=overlay)
+    background.save("new.png","PNG")
 
 '''
 A function that simplifies the code; basically just changes the slider
@@ -413,7 +433,7 @@ while not done:
                 namesOfRightCrescentLabels[sliderClicked]
             else:
                 currentModel.qualities[sliderClicked]=\
-                    (pos[0]-833)/(shapeMultipliers[currentModel.shape]\
+                    (pos[0]-825)/(shapeMultipliers[currentModel.shape]\
                     [sliderClicked])
             sliderPositions = changeSliderPositions()
             if sliderClicked>1:
@@ -449,29 +469,34 @@ while not done:
                     convert_alpha()
     '''
     goes through the history of models and creates each one at the right
-    coordinates
+    coordinatess
     '''
     for i in range(len(oldShapeQualities)):
-        if oldShapeTypes[str(i+1)] == 'crescent':
-            crescentCreate(
-                oldShapeQualities[str(i+1)][2],
-                oldShapeQualities[str(i+1)][3],
-                oldShapeQualities[str(i+1)][4],
-                oldShapeQualities[str(i+1)][5],
-                oldShapeQualities[str(i+1)][6],
-                oldShapeQualities[str(i+1)][7],
-                str('oldShape.png'))
-        elif oldShapeTypes[str(i+1)] == 'gaussian':
-            gaussianCreate(
-                oldShapeQualities[str(i+1)][2],
-                oldShapeQualities[str(i+1)][3],
-                oldShapeQualities[str(i+1)][4],
-                oldShapeQualities[str(i+1)][5],
-                str('oldShape.png'))
-        currentOldImage=pygame.image.load('oldShape.png').convert_alpha()
-        gameDisplay.blit(currentOldImage,
-                        (oldShapeQualities[str(i+1)][0]-400,
-                        oldShapeQualities[str(i+1)][1]-400))
+        if len(oldShapeQualities)>previousOldShapeLength:
+            if oldShapeTypes[str(previousOldShapeLength+1)] == 'crescent':
+                crescentCreate(
+                    oldShapeQualities[str(previousOldShapeLength+1)][2],
+                    oldShapeQualities[str(previousOldShapeLength+1)][3],
+                    oldShapeQualities[str(previousOldShapeLength+1)][4],
+                    oldShapeQualities[str(previousOldShapeLength+1)][5],
+                    oldShapeQualities[str(previousOldShapeLength+1)][6],
+                    oldShapeQualities[str(previousOldShapeLength+1)][7],
+                    str('oldShape%d.png' % (previousOldShapeLength+1)))
+            elif oldShapeTypes[str(previousOldShapeLength+1)] == 'gaussian':
+                gaussianCreate(
+                    oldShapeQualities[str(previousOldShapeLength+1)][2],
+                    oldShapeQualities[str(previousOldShapeLength+1)][3],
+                    oldShapeQualities[str(previousOldShapeLength+1)][4],
+                    oldShapeQualities[str(previousOldShapeLength+1)][5],
+                    str('oldShape%d.png' % (previousOldShapeLength+1)))
+            previousOldShapeLength += 1
+        if previousOldShapeLength>0:
+            currentOldImage=pygame.image.load(str('oldShape%d.png' %\
+                int(i+1))).convert_alpha()
+            gameDisplay.blit(currentOldImage,
+                (oldShapeQualities[str(i+1)][0]-400,
+                oldShapeQualities[str(i+1)][1]-400))
+
     '''
     displays the axes and the axes labels
     '''
