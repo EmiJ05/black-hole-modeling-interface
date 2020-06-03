@@ -1,3 +1,5 @@
+import os
+import sys
 import math
 import pygame
 import cProfile
@@ -264,6 +266,8 @@ def saveImage():
                 background = background.convert("RGBA")
                 overlay = overlay.convert("RGBA")
                 background.paste(overlay, box=None, mask=overlay)
+    else:
+        background = Image.open("blackBackground.png")
     overlay = Image.open("currentModel.png")
     background = background.convert("RGBA")
     overlay = overlay.convert("RGBA")
@@ -271,7 +275,19 @@ def saveImage():
     overlay = background
     background = Image.open("blackBackground.png")
     background.paste(overlay, box=None, mask=overlay)
-    background.save("new.png","PNG")
+    background.save("finalImage.png","PNG")
+    os.remove("gaussianIcon.png")
+    os.remove("crescentIcon.png")
+    os.remove("currentModel.png")
+    for i in oldShapeQualities:
+        os.remove("oldShape%d.png" % int(i))
+    print("Thank you for using my black hole modeling software! The "
+            + "image outputs in a file called finalImage.png - check "
+            + " it out! Contact emilia.jacobsen@winsor.edu for any "
+            + " questions about how the software works.")
+    sys.exit()
+
+
 
 '''
 A function that simplifies the code; basically just changes the slider
@@ -338,12 +354,9 @@ while not done:
         if event.type == pygame.MOUSEBUTTONDOWN:
             '''
             sets mouse clicked to true
-            if the savebutton is clicked, call the saveImage functon
             '''
             mouseClicked=True
-            if pos[0]>850 and pos[0]<950 and pos[1]>770 and pos[1]<790:
-                saveImage()
-                done = True
+
             '''
             if the selected shape is greater than zero, or if a shape is
             selected, then go check if the mouse is over the slider bar and 
@@ -405,6 +418,12 @@ while not done:
                 currentModelImage=pygame.image.load('currentModel.png').\
                     convert_alpha()
                 sliderPositions = changeSliderPositions()
+            '''
+            if the savebutton is clicked, call the saveImage functon
+            '''
+            if pos[0]>850 and pos[0]<950 and pos[1]>770 and pos[1]<790:
+                saveImage()
+                done = True
         '''
         if mouse is unclicked, then if a selected shapes become unplaced and 
         selected sliders are unselected
